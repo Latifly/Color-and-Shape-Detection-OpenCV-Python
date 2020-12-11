@@ -1,3 +1,8 @@
+# USAGE
+# python detect_shapes.py --image shapes_and_colors.png
+
+# import the necessary packages
+import argparse
 import imutils
 from cv2 import cv2
 
@@ -34,49 +39,50 @@ def detectshape(c):
 	# return the name of the shape
         return shape
 
-image = cv2.imread("shapeUji8.png")
+# construct the argument parse and parse the arguments
+# ap = argparse.ArgumentParser()
+# ap.add_argument("-i", "--image", required=True,
+# 	help="path to the input image")
+# args = vars(ap.parse_args())
+
+# load the image and resize it to a smaller factor so that
+# the shapes can be approximated better
+image = cv2.imread("shapes_and_colors.png")
+# image = cv2.imread(args["image"])
 resized = imutils.resize(image, width=300)
 ratio = image.shape[0] / float(resized.shape[0])
 
+# convert the resized image to grayscale, blur it slightly,
+# and threshold it
 gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
 blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 thresh = cv2.threshold(blurred, 60, 255, cv2.THRESH_BINARY)[1]
 
-# find contours and hierarchy in the  image and initialize the
+
+# find contours in the thresholded image and initialize the
 # shape detector
-cnts,hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+cnts = imutils.grab_contours(cnts)
 
-#list 
-shapes = []
-shapesSgtg = []
-results = []
-
-# detecting shape square and triangle, and save the index number
-for cIdx, c in enumerate(cnts):
-	shape = detectshape(c)
-	if shape == "square":
-		shapes.append(cIdx)
-	if shape == "triangle":
-		shapesSgtg.append(cIdx)
-
-# checking, is the triangle a child of square
-for x in shapesSgtg:
-	for y in shapes:
-		if hierarchy[0][x][3] == y:
-			results.append(x)
-
-# marking the detection in the image and labelling
-for result in results:
-	counts = cnts[result]
-	M = cv2.moments(counts)
+# loop over the contours
+for c in cnts:
+	# compute the center of the contour, then detect the name of the
+	# shape using only the contour
+	M = cv2.moments(c)
 	cX = int((M["m10"] / M["m00"]) * ratio)
 	cY = int((M["m01"] / M["m00"]) * ratio)
-	counts = counts.astype("float")
-	counts *= ratio
-	counts = counts.astype("int")
-	cv2.drawContours(image, [counts], -1, (0, 255, 0), 2)
-	cv2.putText(image, "Segitiga dalam Kotak", (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+	shape = detectshape(c)
 
-#show the result
-cv2.imshow("Image", image)
+	# multiply the contour (x, y)-coordinates by the resize ratio,
+	# then draw the contours and the name of the shape on the image
+	c = c.astype("float")
+	c *= ratio
+	c = c.astype("int")
+	cv2.drawContours(image, [c], -1, (0, 255, 0), 2)
+	cv2.putText(image, shape, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX,
+		0.5, (255, 255, 255), 2)
+
+	# show the output image
+	cv2.imshow("Image", image)
+	#cv2.waitKey(0)
 cv2.waitKey(0)
